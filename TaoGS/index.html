@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Director: Instance-aware Gaussian Splatting for Dynamic Scene Modeling and Understanding">
+    <meta name="keywords" content="Director, 3DGS, 4DGS, 4D Segmentation, Understanding, Gaussian Primitives, Volumetric Videos, 3D Reconstruction">
+    <link rel="canonical" href="https://guochch.github.io/Director/" />
+    <meta name="author" content="Yuheng Jiang*, Yiwen Cai*, Zihao Wang, Yize Wu, Sicheng Li, Zhuo Su, Lan Xu, Shaohui Jiao">
+        
+    <title>Director: Instance-aware Gaussian Splatting for Dynamic Scene Modeling and Understanding</title>
+    
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+    <style>
+        /* 全局与基础排版 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #ffffff;
+            color: #333;
+        }
+        .main-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        h2, h3 {
+            text-align: center;
+            color: #7cb0d1;
+            margin-bottom: 20px;
+            margin-top: 40px;
+        }
+        h6.description-text {
+            color: #828688;
+            text-align: center;
+            font-size: 18px;
+            max-width: 900px;
+            margin: 20px auto;
+            line-height: 1.6;
+        }
+        hr {
+            margin: 20px 0 40px 0;
+            border-top: 1px solid #ddd;
+        }
+
+        /* 顶部标题区 */
+        .jumbotron {
+            background-color: transparent;
+            padding: 3rem 1rem 1rem 1rem;
+            margin-bottom: 0;
+            text-align: center;
+        }
+        .authors a {
+            color: #007bff;
+            text-decoration: none;
+            margin: 0 5px;
+        }
+        .title {
+            color: #6c757d;
+        }
+        .btn-group {
+            margin-top: 15px;
+        }
+
+        /* 图片统一约束 */
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border-radius: 8px;
+        }
+
+        /* 对比视频滑块容器 */
+        .top-comparison-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            margin: 0 auto;
+            overflow: hidden;
+            background: #000;
+            border-radius: 8px;
+        }
+        .video-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .video-left {
+            clip-path: inset(0 50% 0 0);
+        }
+        .video-right {
+            clip-path: inset(0 0 0 50%);
+        }
+        .top-comparison-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .comparison-slider {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 4px;
+            background: linear-gradient(to bottom, rgb(88, 84, 84), rgb(184, 180, 180));
+            cursor: ew-resize;
+            z-index: 10;
+            box-shadow: 0 0 10px rgba(21, 20, 20, 0.6);
+        }
+        .comparison-slider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: -8px;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        .label {
+            position: absolute;
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 6px;
+            z-index: 11;
+        }
+        .label-left-top { top: 15px; left: 15px; }
+        .label-right-top { top: 15px; right: 15px; }
+
+        /* 轮播按钮 */
+        .carousel-control-prev, .carousel-control-next {
+            width: 60px;
+            height: 60px;
+            background-color: transparent;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.8;
+            z-index: 15;
+        }
+        .carousel-control-prev-icon, .carousel-control-next-icon {
+            background-color: rgba(103, 122, 79, 0.98);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            background-size: 25px 25px;
+        }
+
+        /* 视频容器 */
+        .vcontainer {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        .vcontainer video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .section-box {
+            margin-bottom: 60px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="jumbotron">
+        <div class="main-container">
+            <h2 style="color:#333; margin-top:0;">Director: Instance-aware Gaussian Splatting for Dynamic Scene Modeling and Understanding</h2>
+            <br>
+            <p class="authors">
+                <a href="https://nowheretrix.github.io/"> Yuheng Jiang<sup>*</sup></a>,
+                <a href="https://Guochch.github.io/"> Yiwen Cai<sup>1</sup><sup>*</sup></a>,
+                <a > Zihao Wang</a>,
+                <a href="https://github.com/wuyize25/"> Yize Wu<sup>1</sup></a>,
+                <a > Sicheng Li</a>,
+                <br>
+                <a href="https://suzhuo.github.io/"> Zhuo Su</a>,
+                <a href="http://xu-lan.com/"> Lan Xu<sup>1</sup><sup>&dagger;</sup></a>,
+                <a href="https://cn.linkedin.com/in/shaohui-jiao-3b563826"> Shaohui Jiao<sup>&dagger;</sup></a>
+            </p>
+            <p class="title">
+                <sup>1</sup>ShanghaiTech University <br>
+            </p>
+            <div class="btn-group" role="group">
+                <a class="btn btn-primary" href="https://arxiv.org/abs/2509.07653" style="background-color: #BEB8DC; border-color: #BEB8DC; color:#fff;">Paper</a>
+                <a class="btn btn-primary" href="https://www.youtube.com/watch?v=84mgptzNV0A" style="background-color: #F0988C; border-color: #F0988C; color:#fff;">Video</a>
+                <a class="btn btn-primary" href="https://github.com/HiFi-Human/TaoGS" style="background-color: #C4A5DE; border-color: #C4A5DE; color:#fff;">Code</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <h6 class="description-text">
+            Given a dynamic sequence with complex motions and multiple interacting instances, <strong style="color: #729ab6;">Director</strong> can not only achieve temporally coherent <strong style="color: #729ab6;">4D reconstruction</strong> and high-fidelity rendering, but also enable <strong style="color: #729ab6;">instance segmentation</strong> and <strong style="color: #729ab6;">open-vocabulary querying</strong>.
+        </h6>
+
+        <div class="section-box">
+            <div id="videoCarousel" class="carousel slide" data-ride="carousel" data-interval="false">
+                <div class="carousel-inner">
+                    <div class="carousel-item active">
+                        <div class="top-comparison-container">
+                            <div class="video-wrapper video-left">
+                                <video autoplay loop muted playsinline>
+                                    <source src="video/p4_4_renders_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="video-wrapper video-right">
+                                <video autoplay loop muted playsinline>
+                                    <source src="video/p4_4_masks_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="comparison-slider"></div>
+                            <div class="label label-left-top">Rendering</div>
+                            <div class="label label-right-top">Segmentation</div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-item">
+                        <div class="top-comparison-container">
+                            <div class="video-wrapper video-left">
+                                <video loop muted playsinline>
+                                    <source src="video/p4_2_renders_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="video-wrapper video-right">
+                                <video loop muted playsinline>
+                                    <source src="video/p4_2_masks_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="comparison-slider"></div>
+                            <div class="label label-left-top">Rendering</div>
+                            <div class="label label-right-top">Segmentation</div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-item">
+                        <div class="top-comparison-container">
+                            <div class="video-wrapper video-left">
+                                <video loop muted playsinline>
+                                    <source src="video/p4_5_renders_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="video-wrapper video-right">
+                                <video loop muted playsinline>
+                                    <source src="video/p4_5_masks_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="comparison-slider"></div>
+                            <div class="label label-left-top">Rendering</div>
+                            <div class="label label-right-top">Segmentation</div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-item">
+                        <div class="top-comparison-container">
+                            <div class="video-wrapper video-left">
+                                <video loop muted playsinline>
+                                    <source src="video/p2_renders.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="video-wrapper video-right">
+                                <video loop muted playsinline>
+                                    <source src="video/p2_masks.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="comparison-slider"></div>
+                            <div class="label label-left-top">Rendering</div>
+                            <div class="label label-right-top">Segmentation</div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-item">
+                        <div class="top-comparison-container">
+                            <div class="video-wrapper video-left">
+                                <video loop muted playsinline>
+                                    <source src="video/spiderman_0_renders_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="video-wrapper video-right">
+                                <video loop muted playsinline>
+                                    <source src="video/spiderman_0_masks_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="comparison-slider"></div>
+                            <div class="label label-left-top">Rendering</div>
+                            <div class="label label-right-top">Segmentation</div>
+                        </div>
+                    </div>
+                    
+                    <div class="carousel-item">
+                        <div class="top-comparison-container">
+                            <div class="video-wrapper video-left">
+                                <video loop muted playsinline>
+                                    <source src="video/spiderman_1_renders_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="video-wrapper video-right">
+                                <video loop muted playsinline>
+                                    <source src="video/spiderman_1_masks_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="comparison-slider"></div>
+                            <div class="label label-left-top">Rendering</div>
+                            <div class="label label-right-top">Segmentation</div>
+                        </div>
+                    </div>
+
+                </div>
+                
+                <a class="carousel-control-prev" href="#videoCarousel" role="button" data-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                </a>
+                <a class="carousel-control-next" href="#videoCarousel" role="button" data-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                </a>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <h3>Instance Segmentation</h3>
+            <hr>
+            <div id="videoCarousel2" class="carousel slide" data-ride="carousel" data-interval="false">
+                <div class="carousel-inner">
+                    <div class="carousel-item active">
+                        <div class="top-comparison-container">
+                            <div class="video-wrapper video-left">
+                                <video autoplay loop muted playsinline>
+                                    <source src="video/p4_4_baise_renders_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="video-wrapper video-right">
+                                <video autoplay loop muted playsinline>
+                                    <source src="video/p4_4_baise_masks_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="comparison-slider"></div>
+                            <div class="label label-left-top">Rendering</div>
+                            <div class="label label-right-top">Segmentation</div>
+                        </div>
+                    </div>
+
+                    <div class="carousel-item">
+                        <div class="top-comparison-container">
+                            <div class="video-wrapper video-left">
+                                <video loop muted playsinline>
+                                    <source src="video/p4_4_lvse_renders_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="video-wrapper video-right">
+                                <video loop muted playsinline>
+                                    <source src="video/p4_4_lvse_masks_all.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="comparison-slider"></div>
+                            <div class="label label-left-top">Rendering</div>
+                            <div class="label label-right-top">Segmentation</div>
+                        </div>
+                    </div>
+                    
+                    <div class="carousel-item">
+                        <div class="top-comparison-container">
+                            <div class="video-wrapper video-left">
+                                <video loop muted playsinline>
+                                    <source src="video/spiderman_0_renders.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="video-wrapper video-right">
+                                <video loop muted playsinline>
+                                    <source src="video/spiderman_0_masks.mp4" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="comparison-slider"></div>
+                            <div class="label label-left-top">Rendering</div>
+                            <div class="label label-right-top">Segmentation</div>
+                        </div>
+                    </div>
+
+                </div>
+                
+                <a class="carousel-control-prev" href="#videoCarousel2" role="button" data-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                </a>
+                <a class="carousel-control-next" href="#videoCarousel2" role="button" data-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                </a>
+            </div>
+        </div>
+
+        <div class="section-box">
+            <h3>Overview Video</h3>
+            <hr>
+            <div class="vcontainer">
+                <video controls autoplay muted loop playsinline>
+                    <source src="video/overview.mp4" type="video/mp4">
+                </video>
+            </div>
+        </div>
+
+        <div class="section-box text-center">
+            <h6 class="description-text">
+                We present <strong style="color: #729ab6;">Director</strong>, an instance-aware spatio-temporal Gaussian representation for dynamic scene modeling and understanding, which enables robust human performance tracking, high-fidelity rendering, and instance-level understanding for open-vocabulary queries.
+            </h6>
+            <img src="img/teaser_new.png" alt="Teaser Image">
+        </div>
+
+        <div class="section-box text-center">
+            <h3>Pipeline</h3>
+            <hr>
+            <img src="img/pipeline_new.png" alt="Pipeline Image">
+            <h6 class="description-text">
+                Using temporally consistent SAM3 masks and sentence embeddings, our method decomposes the scene into static background and dynamic foreground, learning language- and instance-aligned features for robust tracking, high-quality rendering, and accurate instance segmentation.
+            </h6>
+        </div>
+
+        <div class="section-box">
+            <h3>Comparison</h3>
+            <hr>
+            <div class="row text-center mb-4">
+                <div class="col-12">
+                    <img src="img/comparison_new_1.jpg" alt="Comparison 1">
+                    <h6 class="description-text">Qualitative comparison with state-of-the-art dynamic rendering methods on novel view synthesis on MPEG GSC dataset and ST-NeRF basketball dataset.</h6>
+                </div>
+            </div>
+            <div class="row text-center mb-4">
+                <div class="col-12">
+                    <img src="img/comparison_new_2.jpg" alt="Comparison 2">
+                    <h6 class="description-text">Qualitative comparison with 4D segmentation methods on ST-NeRF basketball dataset.</h6>
+                </div>
+            </div>
+            <div class="row text-center mb-4">
+                <div class="col-12">
+                    <img src="img/comparison_new_3.jpg" alt="Comparison 3">
+                    <h6 class="description-text">Visualization of open-vocabulary querying results.</h6>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-box text-center">
+            <h3>Result Gallery</h3>
+            <hr>
+            <img src="img/gallery_new.jpg" alt="Gallery Image">
+        </div>
+
+        <div class="section-box">
+            <h2>Acknowledgements</h2>
+            <hr>
+            <p style="color: #555; text-align: justify;">
+                The authors would like to thank <strong>Meihan Zheng</strong> and <strong>Yiwen Cai</strong> from ShanghaiTech University for processing the dataset. We also thank the reviewers for their feedback. This work was supported by National Key R&D Program of China (2022YFF0902301), Shanghai Local college capacity building program (22010502800). We also acknowledge support from Shanghai Frontiers Science Center of Human-centered Artificial Intelligence (ShangHAI).
+            </p>
+        </div>
+
+        <hr>
+        <footer style="text-align: center; padding-bottom: 30px;">
+            <p style="color: #777;">Send feedback and questions to <a href="https://nowheretrix.github.io/">Yuheng Jiang</a> and <a href="https://guochch.github.io/">Chengcheng Guo</a></p>
+        </footer>
+
+    </div> <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" crossorigin="anonymous"></script>
+
+    <script>
+        function syncVideos(video1, video2) {
+            if (!video1 || !video2) return;
+
+            // 播放和暂停状态依然双向绑定
+            video1.addEventListener('play', () => { if (video2.paused) video2.play(); });
+            video1.addEventListener('pause', () => { if (!video2.paused) video2.pause(); });
+            video2.addEventListener('play', () => { if (video1.paused) video1.play(); });
+            video2.addEventListener('pause', () => { if (!video1.paused) video1.pause(); });
+
+            // 【关键修复】：时间同步改为单向（主从模式）
+            // 只有 video1 进度改变时，才去检查并修正 video2。阈值略微放宽到 0.1 秒防抖
+            video1.addEventListener('timeupdate', () => {
+                if (Math.abs(video1.currentTime - video2.currentTime) > 0.1) {
+                    video2.currentTime = video1.currentTime;
+                }
+            });
+
+            // 当主视频被手动拖拽或循环时，副视频直接跟随
+            video1.addEventListener('seeked', () => { 
+                video2.currentTime = video1.currentTime; 
+            });
+            
+            // 注意：不要再添加 video2.addEventListener('timeupdate', ...) 了！
+        }
+
+        function setupSlider(container) {
+            const slider = container.querySelector('.comparison-slider');
+            const videoLeft = container.querySelector('.video-left');
+            const videoRight = container.querySelector('.video-right');
+
+            if (!slider || !videoLeft || !videoRight) return;
+
+            slider.addEventListener('mousedown', startDragging);
+
+            function startDragging() {
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('mouseup', stopDragging);
+            }
+
+            function drag(e) {
+                const rect = container.getBoundingClientRect();
+                let offsetX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+                let percentage = (offsetX / rect.width) * 100;
+                slider.style.left = percentage + '%';
+                videoLeft.style.clipPath = `inset(0 ${100 - percentage}% 0 0)`;
+                videoRight.style.clipPath = `inset(0 0 0 ${percentage}%)`;
+            }
+
+            function stopDragging() {
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('mouseup', stopDragging);
+            }
+        }
+
+        $(document).ready(function () {
+            // 初始化滑块视频同步和拖拽
+            $('.top-comparison-container').each(function () {
+                const leftVideo = $(this).find('.video-left video')[0];
+                const rightVideo = $(this).find('.video-right video')[0];
+                syncVideos(leftVideo, rightVideo);
+                setupSlider(this);
+            });
+
+            // 轮播切换时播放/暂停控制
+            $('.carousel').on('slide.bs.carousel', function (e) {
+                $(this).find('video').each(function () {
+                    this.pause();
+                });
+                $(e.relatedTarget).find('video').each(function () {
+                    this.play().catch(() => {});
+                });
+            });
+        });
+    </script>
+</body>
+</html>
