@@ -160,13 +160,18 @@
         /* 视频容器 */
         .vcontainer {
             width: 100%;
+            max-width: 800px;         
+            margin: 0 auto 2rem auto; 
             border-radius: 8px;
             overflow: hidden;
-            margin-bottom: 2rem;
+            aspect-ratio: 16 / 9;    
         }
-        .vcontainer video {
+        
+        
+        .vcontainer video,
+        .vcontainer .video { 
             width: 100%;
-            height: auto;
+            height: 100%;
             display: block;
         }
         
@@ -401,14 +406,14 @@
                 </a>
             </div>
         </div> -->
-
         <div class="section-box">
             <h3>Overview Video</h3>
             <hr>
             <div class="vcontainer">
-                <video controls autoplay muted loop playsinline>
-                    <source src="video/overview.mp4" type="video/mp4">
-                </video>
+                <iframe class='video' src="https://www.youtube.com/embed/nKOrM7DcpvI" 
+                title="YouTube video player" frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                allowfullscreen></iframe>
             </div>
         </div>
 
