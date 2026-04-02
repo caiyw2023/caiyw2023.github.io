@@ -479,41 +479,52 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" crossorigin="anonymous"></script>
 
     <script>
+        // 1. 全局变量，用于记录当前滑块的位置（默认50%）
+        let globalSliderPercent = 50;
+
         function syncVideos(video1, video2) {
             if (!video1 || !video2) return;
 
-            // 播放和暂停状态依然双向绑定
             video1.addEventListener('play', () => { if (video2.paused) video2.play(); });
             video1.addEventListener('pause', () => { if (!video2.paused) video2.pause(); });
             video2.addEventListener('play', () => { if (video1.paused) video1.play(); });
             video2.addEventListener('pause', () => { if (!video1.paused) video1.pause(); });
 
-            // 【关键修复】：时间同步改为单向（主从模式）
-            // 只有 video1 进度改变时，才去检查并修正 video2。阈值略微放宽到 0.1 秒防抖
             video1.addEventListener('timeupdate', () => {
                 if (Math.abs(video1.currentTime - video2.currentTime) > 0.1) {
                     video2.currentTime = video1.currentTime;
                 }
             });
 
-            // 当主视频被手动拖拽或循环时，副视频直接跟随
             video1.addEventListener('seeked', () => { 
                 video2.currentTime = video1.currentTime; 
             });
-            
-            // 注意：不要再添加 video2.addEventListener('timeupdate', ...) 了！
         }
 
-        function setupSlider(container) {
+        // 2. 抽离出一个通用函数，专门用于给指定的容器应用具体的百分比位置
+        function applySliderPosition(container, percentage) {
             const slider = container.querySelector('.comparison-slider');
             const videoLeft = container.querySelector('.video-left');
             const videoRight = container.querySelector('.video-right');
 
             if (!slider || !videoLeft || !videoRight) return;
 
+            slider.style.left = percentage + '%';
+            videoLeft.style.clipPath = `inset(0 ${100 - percentage}% 0 0)`;
+            videoRight.style.clipPath = `inset(0 0 0 ${percentage}%)`;
+        }
+
+        function setupSlider(container) {
+            const slider = container.querySelector('.comparison-slider');
+            if (!slider) return;
+
+            // 刚加载时，也应用当前的全局变量位置
+            applySliderPosition(container, globalSliderPercent);
+
             slider.addEventListener('mousedown', startDragging);
 
-            function startDragging() {
+            function startDragging(e) {
+                e.preventDefault(); // 防止拖拽时选中周围文本
                 document.addEventListener('mousemove', drag);
                 document.addEventListener('mouseup', stopDragging);
             }
@@ -522,9 +533,12 @@
                 const rect = container.getBoundingClientRect();
                 let offsetX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
                 let percentage = (offsetX / rect.width) * 100;
-                slider.style.left = percentage + '%';
-                videoLeft.style.clipPath = `inset(0 ${100 - percentage}% 0 0)`;
-                videoRight.style.clipPath = `inset(0 0 0 ${percentage}%)`;
+                
+                // 3. 每次拖拽时，更新全局变量的值
+                globalSliderPercent = percentage;
+                
+                // 将新位置应用到当前容器
+                applySliderPosition(container, percentage);
             }
 
             function stopDragging() {
@@ -542,14 +556,23 @@
                 setupSlider(this);
             });
 
-            // 轮播切换时播放/暂停控制
+            // 轮播切换时播放/暂停控制，并继承滑块位置
             $('.carousel').on('slide.bs.carousel', function (e) {
+                // 暂停前一个视频
                 $(this).find('video').each(function () {
                     this.pause();
                 });
+                
+                // 播放下一个视频
                 $(e.relatedTarget).find('video').each(function () {
                     this.play().catch(() => {});
                 });
+
+                // 4. 获取即将展现的容器，并将刚刚记录的全局滑块位置赋给它
+                const targetContainer = $(e.relatedTarget).find('.top-comparison-container')[0];
+                if (targetContainer) {
+                    applySliderPosition(targetContainer, globalSliderPercent);
+                }
             });
         });
     </script>
